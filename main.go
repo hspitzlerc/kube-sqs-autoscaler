@@ -45,7 +45,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient) {
 						continue
 					}
 
-					if err := p.ScaleUp(); err != nil {
+					if err := p.ScaleUp(1); err != nil {
 						log.Errorf("Failed scaling up: %v", err)
 						continue
 					}
@@ -59,7 +59,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient) {
 						continue
 					}
 
-					if err := p.ScaleDown(); err != nil {
+					if err := p.ScaleDown(1); err != nil {
 						log.Errorf("Failed scaling down: %v", err)
 						continue
 					}

@@ -41,7 +41,7 @@ func NewPodAutoScaler(kubernetesDeploymentName string, kubernetesNamespace strin
 	}
 }
 
-func (p *PodAutoScaler) ScaleUp() error {
+func (p *PodAutoScaler) ScaleUp(numPodsToAdd int) error {
 	deployment, err := p.Client.Deployments(p.Namespace).Get(p.Deployment)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment from kube server, no scale up occured")
@@ -49,11 +49,15 @@ func (p *PodAutoScaler) ScaleUp() error {
 
 	currentReplicas := deployment.Spec.Replicas
 
-	if currentReplicas >= int32(p.Max) {
+	if numPodsToAdd < 0 {
+		return errors.New("Scaling up by a negative number is not allowed")
+	}
+
+	if (currentReplicas + numPodsToAdd) >= int32(p.Max) {
 		return errors.New("Max pods reached")
 	}
 
-	deployment.Spec.Replicas = currentReplicas + 1
+	deployment.Spec.Replicas = currentReplicas + numPodsToAdd
 
 	_, err = p.Client.Deployments(p.Namespace).Update(deployment)
 	if err != nil {
@@ -64,7 +68,7 @@ func (p *PodAutoScaler) ScaleUp() error {
 	return nil
 }
 
-func (p *PodAutoScaler) ScaleDown() error {
+func (p *PodAutoScaler) ScaleDown(numPodsToRemove int) error {
 	deployment, err := p.Client.Deployments(p.Namespace).Get(p.Deployment)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment from kube server, no scale down occured")
@@ -72,11 +76,15 @@ func (p *PodAutoScaler) ScaleDown() error {
 
 	currentReplicas := deployment.Spec.Replicas
 
-	if currentReplicas <= int32(p.Min) {
+  if numPodsToRemove < 0 {
+		return errors.New("Scaling down by a negative number is not allowed")
+	}
+
+	if (currentReplicas - numPodsToRemove) <= int32(p.Min) {
 		return errors.New("Min pods reached")
 	}
 
-	deployment.Spec.Replicas = currentReplicas - 1
+	deployment.Spec.Replicas = currentReplicas - numPodsToRemove
 
 	deployment, err = p.Client.Deployments(p.Namespace).Update(deployment)
 	if err != nil {
