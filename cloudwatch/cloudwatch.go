@@ -11,7 +11,7 @@ import (
 )
 
 type CloudWatch interface {
-	GetMetricData(*cloudwatch.GetMetricDataInput) (*cloudwatch.GetMetricDataOutput, error)
+	GetMetricStatistics(*cloudwatch.GetMetricStatisticsInput) (*cloudwatch.GetMetricStatisticsOutput, error)
 }
 
 type CloudWatchClient struct {
@@ -23,22 +23,32 @@ func NewCloudWatchClient(queue string, region string) *CloudWatchClient {
 	svc := cloudwatch.New(session.New(), &aws.Config{Region: aws.String(region)})
 	return &CloudWatchClient {
 		svc,
-		queue
+		queue,
 	}
+}
+
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
+func int64Ptr(x int64) *int64 {
+	return &x
 }
 
 func (s *CloudWatchClient) GetQueueMetric(metric string) (float64, error) {
 	params := &cloudwatch.GetMetricStatisticsInput {
 		Dimensions: []*cloudwatch.Dimension{
-			Name: aws.String("QueueName"),
-			Value: aws.String(s.Queue),
+			&cloudwatch.Dimension{
+				Name: aws.String("QueueName"),
+				Value: aws.String(s.Queue),
+			},
 		},
 		MetricName: aws.String(metric),
 		Namespace: aws.String("AWS/SQS"),
-		StartTime: time.Now().Add(-time.Minute),
-		EndTime: time.Now(),
-		Period: 60,
-		Statistics: aws.String("Sum"),
+		StartTime: timePtr(time.Now().Add(-time.Minute)),
+		EndTime: timePtr(time.Now()),
+		Period: int64Ptr(60),
+		Statistics: []*string{ aws.String("Sum") },
 	}
 
 	out, err := s.Client.GetMetricStatistics(params)
@@ -50,5 +60,5 @@ func (s *CloudWatchClient) GetQueueMetric(metric string) (float64, error) {
 		return 0, errors.New("Failed to get queue metric datapoints")
 	}
 
-	return out.Datapoints[len(out.Datapoints) - 1].Sum, nil
+	return *out.Datapoints[len(out.Datapoints) - 1].Sum, nil
 }
