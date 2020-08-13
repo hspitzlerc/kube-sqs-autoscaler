@@ -4,10 +4,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	kclient "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/watch"
+	"k8s.io/api"
+	extensions "k8s.io/api/extensions/v1beta1"
+	kclient "k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func TestScaleUp(t *testing.T) {

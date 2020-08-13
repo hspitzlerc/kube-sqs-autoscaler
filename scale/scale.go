@@ -1,20 +1,19 @@
 package scale
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 
 	log "github.com/sirupsen/logrus"
 
-	"k8s.io/kubernetes/pkg/client/restclient"
-	kclient "k8s.io/kubernetes/pkg/client/unversioned"
+	restclient "k8s.io/client-go/rest"
+	kclient "k8s.io/client-go/kubernetes"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type KubeClient interface {
-	Deployments(namespace string) kclient.DeploymentInterface
-}
-
 type PodAutoScaler struct {
-	Client     KubeClient
+	Client     *kclient.Clientset
 	Max        int
 	Min        int
 	Deployment string
@@ -27,7 +26,7 @@ func NewPodAutoScaler(kubernetesDeploymentName string, kubernetesNamespace strin
 		panic("Failed to configure incluster config")
 	}
 
-	k8sClient, err := kclient.New(config)
+	k8sClient, err := kclient.NewForConfig(config)
 	if err != nil {
 		panic("Failed to configure client")
 	}
@@ -41,8 +40,12 @@ func NewPodAutoScaler(kubernetesDeploymentName string, kubernetesNamespace strin
 	}
 }
 
-func (p *PodAutoScaler) ScaleUp(numPodsToAdd int) error {
-	deployment, err := p.Client.Deployments(p.Namespace).Get(p.Deployment)
+func int32Ptr(x int32) *int32 {
+	return &x
+}
+
+func (p *PodAutoScaler) ScaleUp(numPodsToAdd int32) error {
+	deployment, err := p.Client.AppsV1().Deployments(p.Namespace).Get(context.TODO(), p.Deployment, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment from kube server, no scale up occured")
 	}
@@ -53,13 +56,13 @@ func (p *PodAutoScaler) ScaleUp(numPodsToAdd int) error {
 		return errors.New("Scaling up by a negative number is not allowed")
 	}
 
-	if (currentReplicas + numPodsToAdd) >= int32(p.Max) {
+	if (*currentReplicas + numPodsToAdd) >= int32(p.Max) {
 		return errors.New("Max pods reached")
 	}
 
-	deployment.Spec.Replicas = currentReplicas + numPodsToAdd
+	deployment.Spec.Replicas = int32Ptr(*currentReplicas + numPodsToAdd)
 
-	_, err = p.Client.Deployments(p.Namespace).Update(deployment)
+	_, err = p.Client.AppsV1().Deployments(p.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to scale up")
 	}
@@ -68,25 +71,25 @@ func (p *PodAutoScaler) ScaleUp(numPodsToAdd int) error {
 	return nil
 }
 
-func (p *PodAutoScaler) ScaleDown(numPodsToRemove int) error {
-	deployment, err := p.Client.Deployments(p.Namespace).Get(p.Deployment)
+func (p *PodAutoScaler) ScaleDown(numPodsToRemove int32) error {
+	deployment, err := p.Client.AppsV1().Deployments(p.Namespace).Get(context.TODO(), p.Deployment, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment from kube server, no scale down occured")
 	}
 
 	currentReplicas := deployment.Spec.Replicas
 
-  if numPodsToRemove < 0 {
+	if numPodsToRemove < 0 {
 		return errors.New("Scaling down by a negative number is not allowed")
 	}
 
-	if (currentReplicas - numPodsToRemove) <= int32(p.Min) {
+	if (*currentReplicas - numPodsToRemove) <= int32(p.Min) {
 		return errors.New("Min pods reached")
 	}
 
-	deployment.Spec.Replicas = currentReplicas - numPodsToRemove
+	deployment.Spec.Replicas = int32Ptr(*currentReplicas - numPodsToRemove)
 
-	deployment, err = p.Client.Deployments(p.Namespace).Update(deployment)
+	deployment, err = p.Client.AppsV1().Deployments(p.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to scale down")
 	}

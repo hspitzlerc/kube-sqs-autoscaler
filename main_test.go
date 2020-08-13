@@ -8,10 +8,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	kclient "k8s.io/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/watch"
+	"k8s.io/api"
+	extensions "k8s.io/api/extensions/v1beta1"
+	kclient "k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/Wattpad/kube-sqs-autoscaler/scale"
 	mainsqs "github.com/Wattpad/kube-sqs-autoscaler/sqs"
