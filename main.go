@@ -7,9 +7,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/Wattpad/kube-sqs-autoscaler/scale"
-	"github.com/Wattpad/kube-sqs-autoscaler/sqs"
-	"github.com/Wattpad/kube-sqs-autoscaler/cloudwatch"
+	"github.com/hspitzlerc/kube-sqs-autoscaler/scale"
+	"github.com/hspitzlerc/kube-sqs-autoscaler/sqs"
+	"github.com/hspitzlerc/kube-sqs-autoscaler/cloudwatch"
 )
 
 var (

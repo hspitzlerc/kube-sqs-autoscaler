@@ -1,4 +1,4 @@
-module github.com/Wattpad/kube-sqs-autoscaler
+module github.com/hspitzlerc/kube-sqs-autoscaler
 
 go 1.14
 
