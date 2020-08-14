@@ -77,6 +77,6 @@ func (p *PodAutoScaler) Scale(numPods int32) error {
 		return errors.Wrap(err, "Failed to scale")
 	}
 
-	log.Infof("Scale successful. Replicas: %d", deployment.Spec.Replicas)
+	log.Infof("Scale successful. Replicas: %d", *deployment.Spec.Replicas)
 	return nil
 }
