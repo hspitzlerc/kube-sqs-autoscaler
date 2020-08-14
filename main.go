@@ -78,7 +78,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 				}
 
 				ratePerPod := messagesProcessed / float64(pods)
-				if numEmpty > scaleDownEmpty {
+				if numEmpty >= scaleDownEmpty {
 					newPods := pods - 1
 					if(newPods < 1) {
 						newPods = 1
