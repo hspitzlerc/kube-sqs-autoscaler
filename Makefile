@@ -1,7 +1,7 @@
 .PHONY: test clean compile build push
 
-IMAGE=wattpad/kube-sqs-autoscaler
-VERSION=v1.2.1
+IMAGE=hspitzlerc/kube-sqs-autoscaler
+VERSION=latest
 
 test:
 	go test ./...

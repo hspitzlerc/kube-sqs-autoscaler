@@ -1,0 +1,72 @@
+version: 2
+
+workflows:
+  version: 2
+  test_deploy_kubesqsautoscaler:
+    jobs:
+      - test-kubesqsautoscaler
+      - build-kubesqsautoscaler-image
+      - deploy-kubesqsautoscaler-docker-image:
+          requires:
+            - test-kubesqsautoscaler
+          filters:
+            branches:
+              only:
+                - master
+                - ruby
+
+jobs:
+  test-kubesqsautoscaler:
+    parallelism: 1
+    docker:
+      - image: circleci/golang:1.12
+    steps:
+      - checkout
+      - add_ssh_keys
+
+      - restore_cache:
+          keys:
+            - go-mod-v4-{{ checksum "go.sum" }}
+
+      # TODO: replace with Golang install command
+      - run: bundle install --path vendor/bundle
+
+      - save_cache:
+          key: go-mod-v4-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+
+      - run:
+          name: Run tests
+          command: |
+            make test
+
+      - store_test_results:
+          path: /tmp/test-results/
+
+  build-kubesqsautoscaler-image:
+    parallelism: 1
+    docker:
+      - image: circleci/golang:1.12
+    steps:
+      - checkout
+      - add_ssh_keys
+      - setup_remote_docker
+      - run:
+          name: Build docker image
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            make build
+
+  deploy-kubesqsautoscaler-docker-image:
+    docker:
+      - image: circleci/golang:1.12
+    steps:
+      - checkout
+      - add_ssh_keys
+      - setup_remote_docker
+      - run:
+          name: Build and push docker image
+          command: |
+            docker login -u $DOCKER_USER -p $DOCKER_PASS
+            make push
