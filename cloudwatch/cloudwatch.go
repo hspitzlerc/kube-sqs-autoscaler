@@ -35,7 +35,7 @@ func int64Ptr(x int64) *int64 {
 	return &x
 }
 
-func (s *CloudWatchClient) GetQueueMetric(metric string) (float64, error) {
+func (s *CloudWatchClient) GetQueueMetric(metric string, statistic string) (float64, error) {
 	params := &cloudwatch.GetMetricStatisticsInput {
 		Dimensions: []*cloudwatch.Dimension{
 			&cloudwatch.Dimension{
@@ -48,7 +48,7 @@ func (s *CloudWatchClient) GetQueueMetric(metric string) (float64, error) {
 		StartTime: timePtr(time.Now().Add(-time.Minute)),
 		EndTime: timePtr(time.Now()),
 		Period: int64Ptr(60),
-		Statistics: []*string{ aws.String("Sum") },
+		Statistics: []*string{ aws.String(statistic) },
 	}
 
 	out, err := s.Client.GetMetricStatistics(params)
@@ -61,4 +61,16 @@ func (s *CloudWatchClient) GetQueueMetric(metric string) (float64, error) {
 	}
 
 	return *out.Datapoints[len(out.Datapoints) - 1].Sum, nil
+}
+
+func (s *CloudWatchClient) Age() (float64, error) {
+	return s.GetQueueMetric("ApproximateAgeOfOldestMessage", "Maximum")
+}
+
+func (s *CloudWatchClient) NumDeleted() (float64, error) {
+	return s.GetQueueMetric("NumberOfMessagesDeleted", "Sum")
+}
+
+func (s *CloudWatchClient) NumSent() (float64, error) {
+	return s.GetQueueMetric("NumberOfMessagesSent", "Sum")
 }

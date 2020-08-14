@@ -44,56 +44,39 @@ func int32Ptr(x int32) *int32 {
 	return &x
 }
 
-func (p *PodAutoScaler) ScaleUp(numPodsToAdd int32) error {
+func (p *PodAutoScaler) GetPods() (int32, error) {
+	deployment, err := p.Client.AppsV1beta2().Deployments(p.Namespace).Get(context.TODO(), p.Deployment, metav1.GetOptions{})
+	if err != nil {
+		return 0, errors.Wrap(err, "Failed to get deployment from kube server")
+	}
+
+	return deployment.Status.AvailableReplicas, nil
+}
+
+func (p *PodAutoScaler) Scale(numPods int32) error {
+	if numPods < 0 {
+		numPods = int32(p.Min)
+	}
+
+	if numPods == int32(p.Max) {
+		numPods = int32(p.Max)
+	}
+	if numPods <= int32(p.Min) {
+		numPods = int32(p.Min)
+	}
+
 	deployment, err := p.Client.AppsV1().Deployments(p.Namespace).Get(context.TODO(), p.Deployment, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get deployment from kube server, no scale up occured")
 	}
 
-	currentReplicas := deployment.Spec.Replicas
-
-	if numPodsToAdd < 0 {
-		return errors.New("Scaling up by a negative number is not allowed")
-	}
-
-	if (*currentReplicas + numPodsToAdd) >= int32(p.Max) {
-		return errors.New("Max pods reached")
-	}
-
-	deployment.Spec.Replicas = int32Ptr(*currentReplicas + numPodsToAdd)
+	deployment.Spec.Replicas = int32Ptr(numPods)
 
 	_, err = p.Client.AppsV1().Deployments(p.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
 	if err != nil {
-		return errors.Wrap(err, "Failed to scale up")
+		return errors.Wrap(err, "Failed to scale")
 	}
 
 	log.Infof("Scale up successful. Replicas: %d", deployment.Spec.Replicas)
-	return nil
-}
-
-func (p *PodAutoScaler) ScaleDown(numPodsToRemove int32) error {
-	deployment, err := p.Client.AppsV1().Deployments(p.Namespace).Get(context.TODO(), p.Deployment, metav1.GetOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to get deployment from kube server, no scale down occured")
-	}
-
-	currentReplicas := deployment.Spec.Replicas
-
-	if numPodsToRemove < 0 {
-		return errors.New("Scaling down by a negative number is not allowed")
-	}
-
-	if (*currentReplicas - numPodsToRemove) <= int32(p.Min) {
-		return errors.New("Min pods reached")
-	}
-
-	deployment.Spec.Replicas = int32Ptr(*currentReplicas - numPodsToRemove)
-
-	deployment, err = p.Client.AppsV1().Deployments(p.Namespace).Update(context.TODO(), deployment, metav1.UpdateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to scale down")
-	}
-
-	log.Infof("Scale down successful. Replicas: %d", deployment.Spec.Replicas)
 	return nil
 }
