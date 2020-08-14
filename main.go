@@ -26,6 +26,8 @@ var (
 	sqsQueueName             string
 	kubernetesDeploymentName string
 	kubernetesNamespace      string
+
+	lastPodRate		float64
 )
 
 func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.CloudWatchClient) {
@@ -78,8 +80,13 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 				}
 
 				ratePerPod := messagesProcessed / float64(pods)
+
+				if lastPodRate <= 0 {
+					lastPodRate = ratePerPod
+				}
+
 				if numEmpty >= scaleDownEmpty {
-					newPods := pods - 1
+					newPods := int32(messagesIncoming / lastPodRate)
 					if(newPods < 1) {
 						newPods = 1
 					}
@@ -97,6 +104,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					lastScaleDownTime = time.Now()
 				} else if messagesIncoming > messagesProcessed {
 					newPods := pods + int32((messagesIncoming - messagesProcessed) / ratePerPod)
+					lastPodRate = ratePerPod
 					if lastScaleUpTime.Add(scaleUpCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
@@ -132,6 +140,8 @@ func main() {
 
 	sqsQueueComponents := strings.Split(sqsQueueUrl, "/")
 	sqsQueueName = sqsQueueComponents[len(sqsQueueComponents) - 1]
+
+	lastPodRate = -1
 
 	p := scale.NewPodAutoScaler(kubernetesDeploymentName, kubernetesNamespace, maxPods, minPods)
 	sqs := sqs.NewSqsClient(sqsQueueUrl, awsRegion)
