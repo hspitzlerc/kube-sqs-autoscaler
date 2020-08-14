@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"time"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 
@@ -115,11 +116,13 @@ func main() {
 	flag.StringVar(&awsRegion, "aws-region", "", "Your AWS region")
 
 	flag.StringVar(&sqsQueueUrl, "sqs-queue-url", "", "The sqs queue url")
-	flag.StringVar(&sqsQueueName, "sqs-queue-name", "", "The bare name of the sqs queue")
 	flag.StringVar(&kubernetesDeploymentName, "kubernetes-deployment", "", "Kubernetes Deployment to scale. This field is required")
 	flag.StringVar(&kubernetesNamespace, "kubernetes-namespace", "default", "The namespace your deployment is running in")
 
 	flag.Parse()
+
+	sqsQueueComponents := strings.Split(sqsQueueUrl, "/")
+	sqsQueueName = sqsQueueComponents[len(sqsQueueComponents) - 1]
 
 	p := scale.NewPodAutoScaler(kubernetesDeploymentName, kubernetesNamespace, maxPods, minPods)
 	sqs := sqs.NewSqsClient(sqsQueueUrl, awsRegion)
