@@ -58,7 +58,7 @@ func (p *PodAutoScaler) Scale(numPods int32) error {
 		numPods = int32(p.Min)
 	}
 
-	if numPods == int32(p.Max) {
+	if numPods >= int32(p.Max) {
 		numPods = int32(p.Max)
 	}
 	if numPods <= int32(p.Min) {
@@ -77,6 +77,6 @@ func (p *PodAutoScaler) Scale(numPods int32) error {
 		return errors.Wrap(err, "Failed to scale")
 	}
 
-	log.Infof("Scale up successful. Replicas: %d", deployment.Spec.Replicas)
+	log.Infof("Scale successful. Replicas: %d", deployment.Spec.Replicas)
 	return nil
 }
