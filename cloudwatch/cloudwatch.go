@@ -86,3 +86,11 @@ func (s *CloudWatchClient) NumSent() (float64, error) {
 	}
 	return *x.Sum, nil
 }
+
+func (s *CloudWatchClient) NumEmpty() (float64, error) {
+	x, err := s.GetQueueMetric("NumberOfEmptyReceives", "Sum")
+	if err != nil {
+		return 0, err
+	}
+	return *x.Sum, nil
+}
