@@ -35,7 +35,7 @@ func int64Ptr(x int64) *int64 {
 	return &x
 }
 
-func (s *CloudWatchClient) GetQueueMetric(metric string, statistic string) (float64, error) {
+func (s *CloudWatchClient) GetQueueMetric(metric string, statistic string) (*cloudwatch.Datapoint, error) {
 	params := &cloudwatch.GetMetricStatisticsInput {
 		Dimensions: []*cloudwatch.Dimension{
 			&cloudwatch.Dimension{
@@ -53,24 +53,36 @@ func (s *CloudWatchClient) GetQueueMetric(metric string, statistic string) (floa
 
 	out, err := s.Client.GetMetricStatistics(params)
 	if err != nil {
-		return 0, errors.Wrap(err, "Failed to get queue metrics from Cloudwatch")
+		return &cloudwatch.Datapoint{}, errors.Wrap(err, "Failed to get queue metrics from Cloudwatch")
 	}
 
 	if len(out.Datapoints) == 0 {
-		return 0, errors.New("Failed to get queue metric datapoints")
+		return &cloudwatch.Datapoint{}, errors.New("Failed to get queue metric datapoints")
 	}
 
-	return *out.Datapoints[len(out.Datapoints) - 1].Sum, nil
+	return out.Datapoints[len(out.Datapoints) - 1], nil
 }
 
 func (s *CloudWatchClient) Age() (float64, error) {
-	return s.GetQueueMetric("ApproximateAgeOfOldestMessage", "Maximum")
+	x, err := s.GetQueueMetric("ApproximateAgeOfOldestMessage", "Maximum")
+	if err != nil {
+		return 0, err
+	}
+	return *x.Maximum, nil
 }
 
 func (s *CloudWatchClient) NumDeleted() (float64, error) {
-	return s.GetQueueMetric("NumberOfMessagesDeleted", "Sum")
+	x, err := s.GetQueueMetric("NumberOfMessagesDeleted", "Sum")
+	if err != nil {
+		return 0, err
+	}
+	return *x.Sum, nil
 }
 
 func (s *CloudWatchClient) NumSent() (float64, error) {
-	return s.GetQueueMetric("NumberOfMessagesSent", "Sum")
+	x, err := s.GetQueueMetric("NumberOfMessagesSent", "Sum")
+	if err != nil {
+		return 0, err
+	}
+	return *x.Sum, nil
 }
