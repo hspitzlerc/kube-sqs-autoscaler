@@ -109,7 +109,7 @@ func main() {
 	flag.DurationVar(&pollInterval, "poll-period", 5*time.Second, "The interval in seconds for checking if scaling is required")
 	flag.DurationVar(&scaleDownCoolPeriod, "scale-down-cool-down", 30*time.Second, "The cool down period for scaling down")
 	flag.DurationVar(&scaleUpCoolPeriod, "scale-up-cool-down", 10*time.Second, "The cool down period for scaling up")
-	flag.Float64Var(&acceptableAge, "acceptable-age", 150, "Maximum age of messages that can sit in the queue without trigging more aggressive scaling logic")
+	flag.Float64Var(&acceptableAge, "acceptable-age", 150, "Maximum age of messages that can sit in the queue without trigging more aggressive scaling logic, in seconds")
 	flag.IntVar(&maxPods, "max-pods", 5, "Max pods that kube-sqs-autoscaler can scale")
 	flag.IntVar(&minPods, "min-pods", 1, "Min pods that kube-sqs-autoscaler can scale")
 	flag.StringVar(&awsRegion, "aws-region", "", "Your AWS region")
