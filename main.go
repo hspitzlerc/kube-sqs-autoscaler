@@ -15,10 +15,11 @@ import (
 var (
 	pollInterval        time.Duration
 	scaleCoolPeriod time.Duration
+	scaleUpMessages     int
+	scaleDownMessages   int
 	acceptableAge       float64
 	maxPods             int
 	minPods             int
-	scaleDownEmpty      float64
 	awsRegion           string
 
 	sqsQueueUrl              string
@@ -55,12 +56,6 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					continue
 				}
 
-				numEmpty, err := cloudwatch.NumEmpty()
-				if err != nil {
-					log.Errorf("Failed to get number of empty receives: %v", err)
-					continue
-				}
-
 				numMessages, err := sqs.NumMessages()
 				if err != nil {
 					log.Errorf("Failed to get SQS messages: %v", err)
@@ -84,15 +79,13 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					lastPodRate = ratePerPod
 				}
 
-				if numEmpty >= scaleDownEmpty {
-					newPods := int32(0)
+				if numMessages <= scaleDownMessages {
+					podDecrement := int32(1)
 					if messagesProcessed > messagesIncoming {
-						newPods = pods - int32((messagesProcessed - messagesIncoming) / lastPodRate)
-					} else {
-						newPods = int32(messagesIncoming / lastPodRate)
-					}
-					if(newPods < 1) {
-						newPods = 1
+						podDecrement = int32((messagesProcessed - messagesIncoming) / lastPodRate)
+						if podDecrement < 1 {
+							podDecrement = 1
+						}
 					}
 
 					if lastScaleDownTime.Add(scaleCoolPeriod).After(time.Now()) {
@@ -100,19 +93,25 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 						continue
 					}
 
-					if err := p.Scale(newPods); err != nil {
+					if err := p.Scale(pods - podDecrement); err != nil {
 						log.Errorf("Failed scaling down: %v", err)
 						continue
 					}
 
 					lastScaleDownTime = time.Now()
-				} else if messagesIncoming > (messagesProcessed + lastPodRate) {
-					newPods := pods + int32((messagesIncoming - messagesProcessed) / lastPodRate)
+				} else if numMessages >= scaleUpMessages {
+					podIncrement := int32(1)
+					if messagesIncoming > messagesProcessed {
+						podIncrement = int32((messagesIncoming - messagesProcessed) / lastPodRate)
+						if podIncrement < 1 {
+							podIncrement = 1
+						}
+					}
 					if lastScaleUpTime.Add(scaleCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
 					}
-					if err := p.Scale(newPods); err != nil {
+					if err := p.Scale(pods + podIncrement); err != nil {
 						log.Errorf("Failed scaling up: %v", err)
 						continue
 					}
@@ -131,9 +130,10 @@ func main() {
 	flag.DurationVar(&pollInterval, "poll-period", 5*time.Second, "The interval in seconds for checking if scaling is required")
 	flag.DurationVar(&scaleCoolPeriod, "scale-cool-down", 60*time.Second, "The cool down period for scaling (min 60 sec)")
 	flag.Float64Var(&acceptableAge, "acceptable-age", 150, "Maximum age of messages that can sit in the queue without trigging more aggressive scaling logic, in seconds")
+	flag.IntVar(&scaleUpMessages, "scale-up-messages", 100, "Number of sqs messages queued up required for scaling up")
+	flag.IntVar(&scaleDownMessages, "scale-down-messages", 10, "Number of sqs messages queued up required to scale down")
 	flag.IntVar(&maxPods, "max-pods", 5, "Max pods that kube-sqs-autoscaler can scale")
 	flag.IntVar(&minPods, "min-pods", 1, "Min pods that kube-sqs-autoscaler can scale")
-	flag.Float64Var(&scaleDownEmpty, "scale-down-empty", 1, "Number of empty receives per minute before triggering scale down")
 	flag.StringVar(&awsRegion, "aws-region", "", "Your AWS region")
 
 	flag.StringVar(&sqsQueueUrl, "sqs-queue-url", "", "The sqs queue url")
