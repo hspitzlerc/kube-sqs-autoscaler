@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/hspitzlerc/kube-sqs-autoscaler/scale"
-	mainsqs "github.com/hspiztlerc/kube-sqs-autoscaler/sqs"
+	mainsqs "github.com/hspitzlerc/kube-sqs-autoscaler/sqs"
 )
 
 func TestRunReachMinReplicas(t *testing.T) {
