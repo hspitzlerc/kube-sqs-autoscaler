@@ -103,7 +103,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 
 					lastScaleDownTime = time.Now()
 				} else if messagesIncoming > (messagesProcessed + lastPodRate) {
-					newPods := int32(messagesIncoming / lastPodRate)
+					newPods := pods + int32((messagesIncoming - messagesProcessed) / lastPodRate)
 					if lastScaleUpTime.Add(scaleUpCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
