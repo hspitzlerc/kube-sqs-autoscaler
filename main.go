@@ -81,7 +81,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 				}
 
 				if numMessages <= scaleDownMessages {
-					podDecrement := int32((messagesIncoming - (lastPodRate * pods)) / lastPodRate)
+					podDecrement := int32((messagesIncoming - (lastPodRate * float64(pods))) / lastPodRate)
 					if podDecrement < 1 {
 						podDecrement = 1
 					}
