@@ -14,8 +14,7 @@ import (
 
 var (
 	pollInterval        time.Duration
-	scaleDownCoolPeriod time.Duration
-	scaleUpCoolPeriod   time.Duration
+	scaleCoolPeriod time.Duration
 	acceptableAge       float64
 	maxPods             int
 	minPods             int
@@ -91,7 +90,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 						newPods = 1
 					}
 
-					if lastScaleDownTime.Add(scaleDownCoolPeriod).After(time.Now()) {
+					if lastScaleDownTime.Add(scaleCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale down")
 						continue
 					}
@@ -104,7 +103,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					lastScaleDownTime = time.Now()
 				} else if messagesIncoming > (messagesProcessed + lastPodRate) {
 					newPods := pods + int32((messagesIncoming - messagesProcessed) / lastPodRate)
-					if lastScaleUpTime.Add(scaleUpCoolPeriod).After(time.Now()) {
+					if lastScaleUpTime.Add(scaleCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
 					}
@@ -125,8 +124,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 
 func main() {
 	flag.DurationVar(&pollInterval, "poll-period", 5*time.Second, "The interval in seconds for checking if scaling is required")
-	flag.DurationVar(&scaleDownCoolPeriod, "scale-down-cool-down", 60*time.Second, "The cool down period for scaling down (min 60 sec)")
-	flag.DurationVar(&scaleUpCoolPeriod, "scale-up-cool-down", 60*time.Second, "The cool down period for scaling up (min 60 sec)")
+	flag.DurationVar(&scaleCoolPeriod, "scale-cool-down", 60*time.Second, "The cool down period for scaling (min 60 sec)")
 	flag.Float64Var(&acceptableAge, "acceptable-age", 150, "Maximum age of messages that can sit in the queue without trigging more aggressive scaling logic, in seconds")
 	flag.IntVar(&maxPods, "max-pods", 5, "Max pods that kube-sqs-autoscaler can scale")
 	flag.IntVar(&minPods, "min-pods", 1, "Min pods that kube-sqs-autoscaler can scale")
@@ -142,11 +140,8 @@ func main() {
 	sqsQueueComponents := strings.Split(sqsQueueUrl, "/")
 	sqsQueueName = sqsQueueComponents[len(sqsQueueComponents) - 1]
 
-	if scaleDownCoolPeriod < 60*time.Second {
-		scaleDownCoolPeriod = 60*time.Second
-	}
-	if scaleUpCoolPeriod < 60*time.Second {
-		scaleUpCoolPeriod = 60*time.Second
+	if scaleCoolPeriod < 60*time.Second {
+		scaleCoolPeriod = 60*time.Second
 	}
 
 	lastPodRate = -1
