@@ -14,7 +14,8 @@ import (
 
 var (
 	pollInterval        time.Duration
-	scaleCoolPeriod time.Duration
+	scaleDownCoolPeriod time.Duration
+	scaleUpCoolPeriod   time.Duration
 	scaleUpMessages     int
 	scaleDownMessages   int
 	acceptableAge       float64
@@ -88,7 +89,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 						}
 					}
 
-					if lastScaleDownTime.Add(scaleCoolPeriod).After(time.Now()) {
+					if lastScaleDownTime.Add(scaleDownCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale down")
 						continue
 					}
@@ -107,7 +108,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 							podIncrement = 1
 						}
 					}
-					if lastScaleUpTime.Add(scaleCoolPeriod).After(time.Now()) {
+					if lastScaleUpTime.Add(scaleUpCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
 					}
@@ -128,7 +129,8 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 
 func main() {
 	flag.DurationVar(&pollInterval, "poll-period", 5*time.Second, "The interval in seconds for checking if scaling is required")
-	flag.DurationVar(&scaleCoolPeriod, "scale-cool-down", 60*time.Second, "The cool down period for scaling (min 60 sec)")
+	flag.DurationVar(&scaleDownCoolPeriod, "scale-down-cool-down", 30*time.Second, "The cool down period for scaling down")
+	flag.DurationVar(&scaleUpCoolPeriod, "scale-up-cool-down", 10*time.Second, "The cool down period for scaling up")
 	flag.Float64Var(&acceptableAge, "acceptable-age", 150, "Maximum age of messages that can sit in the queue without trigging more aggressive scaling logic, in seconds")
 	flag.IntVar(&scaleUpMessages, "scale-up-messages", 100, "Number of sqs messages queued up required for scaling up")
 	flag.IntVar(&scaleDownMessages, "scale-down-messages", 10, "Number of sqs messages queued up required to scale down")
@@ -144,10 +146,6 @@ func main() {
 
 	sqsQueueComponents := strings.Split(sqsQueueUrl, "/")
 	sqsQueueName = sqsQueueComponents[len(sqsQueueComponents) - 1]
-
-	if scaleCoolPeriod < 60*time.Second {
-		scaleCoolPeriod = 60*time.Second
-	}
 
 	lastPodRate = -1
 
