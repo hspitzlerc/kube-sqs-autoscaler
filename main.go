@@ -81,7 +81,7 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 
 				ratePerPod := messagesProcessed / float64(pods)
 
-				if lastPodRate <= 0 {
+				if lastPodRate < ratePerPod {
 					lastPodRate = ratePerPod
 				}
 
@@ -102,9 +102,8 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					}
 
 					lastScaleDownTime = time.Now()
-				} else if messagesIncoming > (messagesProcessed + ratePerPod) {
-					newPods := int32(messagesIncoming / ratePerPod)
-					lastPodRate = ratePerPod
+				} else if messagesIncoming > (messagesProcessed + lastPodRate) {
+					newPods := int32(messagesIncoming / lastPodRate)
 					if lastScaleUpTime.Add(scaleUpCoolPeriod).After(time.Now()) {
 						log.Info("Waiting for cool down, skipping scale up ")
 						continue
@@ -115,6 +114,8 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient, cloudwatch *cloudwatch.Clou
 					}
 
 					lastScaleUpTime = time.Now()
+				} else {
+					lastPodRate = ratePerPod
 				}
 			}
 		}
