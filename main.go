@@ -16,6 +16,7 @@ var (
 	scaleUpCoolPeriod   time.Duration
 	scaleUpMessages     int
 	scaleDownMessages   int
+	maxPodAdjustment    int
 	maxPods             int
 	minPods             int
 	awsRegion           string
@@ -45,7 +46,11 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient) {
 						continue
 					}
 
-					if err := p.ScaleUp(1); err != nil {
+					scalingExponent := int32(numMessages / scaleUpMessages) - 1
+          numPodsToAdd := math.Pow(2, float64(scalingExponent))
+          numPodsToAdd = math.Min(numPodsToAdd, maxPodAdjustment)
+
+					if err := p.ScaleUp(numPodsToAdd); err != nil {
 						log.Errorf("Failed scaling up: %v", err)
 						continue
 					}
@@ -59,7 +64,11 @@ func Run(p *scale.PodAutoScaler, sqs *sqs.SqsClient) {
 						continue
 					}
 
-					if err := p.ScaleDown(1); err != nil {
+          scalingExponent = int32(scaleDownMessages / numMessages) - 1
+          numPodsToRemove := math.Pow(2, float64(scalingExponent))
+          numPodsToRemove = math.Min(numPodsToRemove, maxPodAdjustment)
+
+					if err := p.ScaleDown(numPodsToRemove); err != nil {
 						log.Errorf("Failed scaling down: %v", err)
 						continue
 					}
@@ -78,6 +87,7 @@ func main() {
 	flag.DurationVar(&scaleUpCoolPeriod, "scale-up-cool-down", 10*time.Second, "The cool down period for scaling up")
 	flag.IntVar(&scaleUpMessages, "scale-up-messages", 100, "Number of sqs messages queued up required for scaling up")
 	flag.IntVar(&scaleDownMessages, "scale-down-messages", 10, "Number of messages required to scale down")
+	flag.IntVar(&maxPodAdjustment, "max-pod-adjustment", 8, "Max number of pods that can be added or removed in one cycle")
 	flag.IntVar(&maxPods, "max-pods", 5, "Max pods that kube-sqs-autoscaler can scale")
 	flag.IntVar(&minPods, "min-pods", 1, "Min pods that kube-sqs-autoscaler can scale")
 	flag.StringVar(&awsRegion, "aws-region", "", "Your AWS region")
